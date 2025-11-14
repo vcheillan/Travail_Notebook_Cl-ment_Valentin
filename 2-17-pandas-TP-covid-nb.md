@@ -429,6 +429,8 @@ combien y-a-t-il d'entrées (de mesures différentes)
 ````
 
 ```{code-cell} ipython3
+print("colonnes:", list(Fr.columns))
+print("nombre d'entrées:", len(Fr))
 
 ```
 
@@ -442,6 +444,9 @@ ajoutez à cette dataframe une colonne de nom `'country'` contenant `'France'` �
 
 ```{code-cell} ipython3
 # votre code
+Fr = pd.DataFrame(by_country['France'])
+Fr['country'] = 'France'
+Fr.head()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -454,6 +459,10 @@ et utilisez la fonction `pandas.concat` pour concaténer les deux dataframes
 
 ```{code-cell} ipython3
 # votre code
+It = pd.DataFrame(by_country['Italy'])
+It['country'] = 'Italy'
+concat_2 = pd.concat([Fr, It], ignore_index=True)
+concat_2.tail()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -465,6 +474,14 @@ vous aurez sans doute besoin d'utiliser un `for` python
 
 ```{code-cell} ipython3
 # votre code
+dfs = []
+for country, series in by_country.items():
+    dfc = pd.DataFrame(series)
+    dfc['country'] = country
+    dfs.append(dfc)
+
+global_df = pd.concat(dfs, ignore_index=True)
+global_df.head()
 ```
 
 ## index de la dataframe globale
@@ -519,6 +536,9 @@ convertissez les dates en format `pandas`
 
 ```{code-cell} ipython3
 # votre code
+global_df['date'] = pd.to_datetime(global_df['date'], errors='coerce')
+print(global_df['date'].dtype)
+global_df.head()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -535,6 +555,12 @@ rangez votre résultat dans une variable `clean_df`
 
 ```{code-cell} ipython3
 # votre code
+pivoted = global_df.pivot_table(index=["country", "date"], values=["confirmed", "deaths", "recovered"])
+pivoted.head()
+```
+```{code-cell} ipython3
+clean_df = global_df.set_index(['country', 'date']).sort_index()
+clean_df.head()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -549,6 +575,8 @@ attention un multi-index est exprimé avec un tuple
 
 ```{code-cell} ipython3
 # votre code
+jan1 = pivoted.loc[("France", "2021-01-01")]
+jan1.head()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -557,6 +585,8 @@ extrayez de    cette dataframe toutes les données relatives à la France
 
 ```{code-cell} ipython3
 # votre code
+Fr2 = pivoted.loc["France"])
+Fr2.head()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -565,6 +595,8 @@ même question pour la France et l'Italie
 
 ```{code-cell} ipython3
 # votre code
+It_et_Fr = clean_df.loc[['France', 'Italy']]
+It_et_Fr.head()
 ```
 
 +++ {"tags": ["framed_cell", "level_intermediate"]}
@@ -670,6 +702,9 @@ affichez sur un graphique les 3 mesures pour la France au cours du temps
 
 ```{code-cell} ipython3
 # votre code
+clean_df.loc['France', ['confirmed', 'deaths', 'recovered']].plot()
+plt.title('France — confirmed / deaths / recovered')
+plt.show()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -678,6 +713,9 @@ idem avec seulement 2 mesures `deaths` et `confirmed`
 
 ```{code-cell} ipython3
 # votre code
+clean_df.loc['France', ['confirmed', 'deaths']].plot()
+plt.title('France — confirmed / deaths / recovered')
+plt.show()
 ```
 
 +++ {"tags": ["framed_cell"]}
@@ -690,6 +728,12 @@ extrayez les données pour les 2 mesures et les 3 pays (appelons là `df3`)
 
 ```{code-cell} ipython3
 # votre code
+pays = ['France', 'Italy', 'Germany']
+mesures = ['deaths', 'confirmed']
+
+df2 = clean_df.loc[(pays, slice(None)), mesures]
+df3 = df2.unstack(level=0)
+
 ```
 
 ```{code-cell} ipython3
@@ -698,6 +742,9 @@ extrayez les données pour les 2 mesures et les 3 pays (appelons là `df3`)
 # que du coup il n'y a plus qu'à plotter
 # 
 # à vous
+df3.plot()
+plt.title('confirmed & deaths pour France / Italy / Germany')
+plt.show()
 ```
 
 ### fonction d'extraction
@@ -716,36 +763,156 @@ et qui retourne une dataframe *prête à être affichée*
 :jp-MarkdownHeadingCollapsed: true
 
 # votre code
+def extract(pays, mesures, start=None, end=None):
+    if isinstance(pays, str):
+        pays = [pays]
+    if isinstance(mesures, str):
+        measures = [mesures]
+
+    df = clean_df.loc[(pays, slice(start, end)), mesures]
+    return df.unstack(level=0)
+```
+
+```{code-cell} ipython3
+extract(['France', 'Italy'], ['confirmed', 'deaths'], '2021-01-01', '2021-12-31').head()
 ```
 
 en utilisant cette fonction, plottez sur un même graphique les données de deux pays
 
 ```{code-cell} ipython3
 # votre code
+essai = extract(['Monaco', 'China'], ['confirmed', 'deaths'], '2021-01-01', '2021-08-31')
+essai.plot()
+plt.title('Monaco vs China (2021) — confirmed & deaths')
+plt.show()
 ```
 
 ## proposez des analyses personnelles sur ces données
 
 ```{code-cell} ipython3
 # votre code
+#Taux de croissance en 2021
+countries = ['France', 'Italy', 'Germany', 'Spain']
+growth = {}
+for c in countries:
+    s = clean_df.loc[c, 'confirmed'].loc['2021-01-01':'2021-12-31']
+    growth[c] = (s.iloc[-1] - s.iloc[0]) / max(1, s.iloc[0])
+
+pd.Series(growth).sort_values(ascending=False)
 ```
 
 ```{code-cell} ipython3
 # votre code
+# Comparaison des décès au 31 août 2021
+for c in ['France', 'Italy']:
+    val = clean_df.loc[c, 'deaths'].loc[:'2021-08-31'].iloc[-1]
+    print(c, ':', val)
 ```
 
 ```{code-cell} ipython3
 # votre code
+# Ratio deaths / confirmed
+rows = []
+for c in ['France', 'Italy', 'Germany', 'Spain']:
+    dea = clean_df.loc[c, 'deaths'].loc[:'2021-08-31'].iloc[-1]
+    conf = clean_df.loc[c, 'confirmed'].loc[:'2021-08-31'].iloc[-1]
+    rows.append({'country': c, 'ratio': dea / max(1, conf)})
+
+pd.DataFrame(rows).set_index('country')
 ```
 
 ```{code-cell} ipython3
-# votre code
+#La France a bien soigné ses malades !!
 ```
 
 ```{code-cell} ipython3
-# .../...
+# # Cas journaliers, décès journaliers
+#diff est une fonction que j'ai trouvé sur internet qui fait la difference entre les deux valeurs consecutives 
+countries = ["France", "Italy", "Germany", "Spain"]
+
+analyse = {}
+
+for c in countries:
+    dfc = clean_df.loc[c].copy()
+    dfc['new_confirmed'] = dfc['confirmed'].diff().fillna(0)
+    dfc['new_deaths'] = dfc['deaths'].diff().fillna(0)
+    
+    analyse[c] = dfc
+
+
+analyse['France'][['new_confirmed', 'new_deaths', 'acceleration']].head()
+
 ```
 
 ```{code-cell} ipython3
+analyse['France'][['new_confirmed', 'new_deaths']].plot()
+plt.title("France — cas et décès journaliers")
+plt.show()
 
 ```
+
+
+
+```{code-cell} ipython3
+# évolution du taux de mortalite
+mortalite = {}
+
+for c in countries:
+    dfc = clean_df.loc[c].copy()
+    dfc['mortalite'] = dfc['deaths'] / dfc['confirmed'].replace(0, 1)
+    mortalite[c] = dfc
+
+# Exemple : France
+mortalite['France']['mortalite'].plot()
+plt.title("France — Taux de mortalité (deaths/confirmed)")
+plt.show()
+
+```
+```{code-cell} ipython3
+#Au début on etait pas très bon...
+```
+```{code-cell} ipython3
+for c in countries:
+    mortalite[c]['mortalite'].plot(alpha=0.7)
+
+plt.title("Taux de mortalité — comparaison pays")
+plt.legend(countries)
+plt.show()
+
+```
+```{code-cell} ipython3
+#L'ALlemagne etait surtout bonne au debut
+```
+```{code-cell} ipython3
+#détection des pics
+import numpy as np
+
+pic_info = []
+
+for c in countries:
+    dfc = clean_df.loc[c].copy()
+
+    dfc['new_confirmed'] = dfc['confirmed'].diff().fillna(0)
+    dfc['new_deaths'] = dfc['deaths'].diff().fillna(0)
+
+    # pic cas journaliers
+    date_pic_cas = dfc['new_confirmed'].idxmax()
+    pic_cas = dfc['new_confirmed'].max()
+
+    # pic décès journaliers
+    date_pic_deaths = dfc['new_deaths'].idxmax()
+    pic_deaths = dfc['new_deaths'].max()
+
+    pic_info.append({
+        "country": c,
+        "pic_cas": pic_cas,
+        "pic_cas_date": date_pic_cas,
+        "pic_deaths": pic_deaths,
+        "pic_deaths_date": date_pic_deaths
+    })
+
+import pandas as pd
+pd.DataFrame(peak_info)
+
+```
+
