@@ -295,7 +295,6 @@ events['timedelta'].iloc[3].components
 ```
 
 ```{code-cell} ipython3
-
 # the type of timedelta is pd.Timedelta
 # the function returns an int
 def convert_timedelta_to_hours(timedelta: pd.Timedelta) -> int:
@@ -454,7 +453,23 @@ you can now produce [the target figures, again they look like this](#label-event
 remember that missing values can be filled with the `fillna` method and that timedelta can be computed with `pandas.Timedelta`
 
 ```{code-cell} ipython3
-# your code
+def plot_by_period(period_col, title, tick_step):
+    grouped = new_table.groupby([period_col, 'region'])['timedelta'].sum()
+    #print(grouped), permet de voir à quoi ressemble le groupby créé
+    pivot = grouped.unstack(fill_value=0)
+    # bar chart empilé
+    ax = pivot.plot(kind='bar',stacked=True,figsize=(12,5))
+    xticks = ax.get_xticks()
+    ax.set_xticks(xticks[::tick_step])
+    plt.title(title)
+    plt.ylabel('Total Timedelta')
+    plt.tight_layout()
+    plt.show()
+
+
+plot_by_period('Week',  'Usage per week (by region)', 12)
+plot_by_period('Month', 'Usage per month (by region)', 3)
+plot_by_period('Year',  'Usage per year (by region)', 1)
 ```
 
 ***
